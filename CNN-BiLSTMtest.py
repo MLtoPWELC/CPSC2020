@@ -95,7 +95,7 @@ class RNN(nn.Module):
         return out
 
 
-UPPS_NET = torch.load('/home/yinyibo/PycharmProjects/pytorch/ECG/' +
+Model_CNN = torch.load('/home/yinyibo/PycharmProjects/pytorch/ECG/' +
                     'code/11.0/ICCSN/paper/CNN_validation_best/9_epoch120_0.94708_0.9480_0.9416.pth')
 rnn = torch.load('/home/yinyibo/PycharmProjects/pytorch/ECG/code/'+
                  '11.0/ICCSN/paper/A_New_BiLSTM_validation/9_epoch100_0.98795_0.9719_0.9470.pth')
@@ -104,14 +104,14 @@ rnn = torch.load('/home/yinyibo/PycharmProjects/pytorch/ECG/code/'+
 CNN_abnormal_num = 0
 
 result_CNN = []
-UPPS_NET.eval()#This is very important. The function of this sentence is to let the BN layer no longer update the parameters during the later model operation.
+Model_CNN.eval()#This is very important. The function of this sentence is to let the BN layer no longer update the parameters during the later model operation.
 #Since the batch size of this test is 1 each time, the performance of the model will be much worse without this sentence.
 
 for i in range(len(XTest_CNN)):
     # print('index %d' % i)
     x = XTest_CNN[i].unsqueeze(0).cuda()
     x2 = XTest_CNN[i].cuda()
-    pred_cnn = torch.max(UPPS_NET(x), 1)[1]
+    pred_cnn = torch.max(Model_CNN(x), 1)[1]
     if pred_cnn == 0:
         result_CNN.append(0)
         if i == 0:
