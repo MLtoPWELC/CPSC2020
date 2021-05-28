@@ -52,74 +52,38 @@ loader2 = Data.DataLoader(
     num_workers=2
 )
 
+class UPPS_NET(nn.Module):
+    def __init__(self, input_nc, ndf):
+        super(UPPS_NET, self).__init__()
 
-class SPP_NET(nn.Module):
-    '''
-    A CNN model which adds spp layer so that we can input multi-size tensor
-    '''
+        self.conv1 = nn.Conv2d(input_nc, ndf, 4, 2, 2, bias=False)
+        self.BN1 = nn.BatchNorm2d(ndf)
 
-    def __init__(self, opt, input_nc, ndf, gpu_ids=[]):
-        super(SPP_NET, self).__init__()
-        self.gpu_ids = gpu_ids
-        self.output_num = [1]
+        self.conv2 = nn.Conv2d(ndf, ndf * 2, 4, 2, 2, groups=1, bias=False)
+        self.BN2 = nn.BatchNorm2d(ndf * 2)
 
-        self.conv1 = nn.Conv2d(input_nc, ndf, kernel_size=kernel_size, stride=stride,
-                               padding=padding, bias=False)
-        self.BN0 = nn.BatchNorm2d(ndf)
-
-        self.conv2 = nn.Conv2d(ndf, ndf * 2, kernel_size=kernel_size, stride=stride,
-                               padding=padding, bias=False)
-        self.BN1 = nn.BatchNorm2d(ndf * 2)
-
-        self.conv5 = nn.Conv2d(ndf * 2, ndf, kernel_size=kernel_size, stride=stride,
-                               padding=padding, bias=False)
-
-        self.fc1 = nn.Linear(ndf, ndf // 2)
-        self.fc2 = nn.Linear(ndf // 2, 2)
+        self.conv3 = nn.Conv2d(ndf * 2, ndf, 4, 2, 2, groups=1, bias=False)
+        self.fc1 = nn.Linear(ndf, 2)
 
     def forward(self, x):
         x = self.conv1(x)
-        x = F.relu(self.BN0(x))
+        x = F.leaky_relu(self.BN1(x))
 
         x = self.conv2(x)
-        x = F.relu(self.BN1(x))
+        x = F.leaky_relu(self.BN2(x))
 
-        x = self.conv5(x)
-        spp = self.spatial_pyramid_pool(x, x.size()[0], [int(x.size(2)), int(x.size(3))], self.output_num)
+        x = self.conv3(x)
+        num_sample = x.size()[0]
+        h_wid = int(math.ceil(int(x.size(2))))
+        w_wid = int(math.ceil(int(x.size(3))))
+        maxpool = nn.MaxPool2d((h_wid, w_wid), stride=(h_wid, w_wid), padding=(0, 0))
+        x = maxpool(x)
+        x = x.view(num_sample, -1)
+        fc1 = self.fc1(x)
 
-        fc1 = self.fc1(spp)
-        fc2 = self.fc2(fc1)
+        return fc1
 
-        output = fc2
-        return output
-
-    def spatial_pyramid_pool(self, previous_conv, num_sample, previous_conv_size, out_pool_size):
-        '''
-        previous_conv: a tensor vector of previous convolution layer
-        num_sample: an int number of image in the batch
-        previous_conv_size: an int vector [height, width] of the matrix features size of previous convolution layer
-        out_pool_size: a int vector of expected output size of max pooling layer
-
-        returns: a tensor vector with shape [1 x n] is the concentration of multi-level pooling
-        '''
-        # print(previous_conv.size())
-        for i in range(len(out_pool_size)):
-            # print(previous_conv_size)
-            h_wid = int(math.ceil(previous_conv_size[0] / out_pool_size[i]))
-            w_wid = int(math.ceil(previous_conv_size[1] / out_pool_size[i]))
-            h_pad = (h_wid * out_pool_size[i] - previous_conv_size[0] + 1) // 2
-            w_pad = (w_wid * out_pool_size[i] - previous_conv_size[1] + 1) // 2
-            maxpool = nn.MaxPool2d((h_wid, w_wid), stride=(h_wid, w_wid), padding=(h_pad, w_pad))
-            x = maxpool(previous_conv)
-            if (i == 0):
-                spp = x.view(num_sample, -1)
-                # print("spp size:",spp.size())
-            else:
-                # print("size:",spp.size())
-                spp = torch.cat((spp, x.view(num_sample, -1)), 1)
-        return spp
-
-
+    
 VGGSPP = torch.load('/home/yinyibo/PycharmProjects/pytorch/ECG/' +
                     'code/11.0/ICCSN/paper/CNN_validation_best/9_epoch120_0.94708_0.9480_0.9416.pth')
 
