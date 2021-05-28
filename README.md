@@ -1,5 +1,4 @@
 # CPSC2020
-Single lead ECG;SPB;PVC
 
 Group:Yibo Yin, Sitao Zhang
 
