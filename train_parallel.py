@@ -172,13 +172,13 @@ for valid_index in range(1):
         print('accuracy_abnormal:%f' % (accuracy_abnormal[-1]))
 
         if max_accuracy < temp:
-            torch.save(VGGSPP, './'+model_dir+'/epoch' + str(epoch) + '_'
+            torch.save(UPPS_NET, './'+model_dir+'/epoch' + str(epoch) + '_'
                        + str(accuracy[-1])[0:7] + '_' +
                        str((normal_right/(len(YValid)-sum(YValid))).numpy())[1:7] + '_'
                        + str((abnormal_right/(sum(YValid))).numpy())[1:7] + '.pth')
             max_accuracy = temp
         if epoch % 20 == 0:
-            torch.save(VGGSPP, './'+model_dir+'/epoch' + str(epoch) + '_'
+            torch.save(UPPS_NET, './'+model_dir+'/epoch' + str(epoch) + '_'
                        + str(accuracy[-1])[0:7] + '_' +
                        str((normal_right/(len(YValid)-sum(YValid))).numpy())[1:7] + '_'
                        + str((abnormal_right/(sum(YValid))).numpy())[1:7] + '.pth')
