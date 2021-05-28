@@ -38,14 +38,6 @@ YTrain_all = YTrain[row_rand[0:validation_size]]
 XTest = XTrain[row_rand[validation_size:]]
 YTest = YTrain[row_rand[validation_size:]]
 
-# for i in range(len(YTest)):
-#     if YTest[i] == 1:
-#         print(i)
-#         np.save('XTest_1.npy', XTest[i])
-#         break
-#
-# np.save('XTest_0.npy', XTest[0])
-
 valid_num = len(XTrain_all)//10
 
 for valid_index in range(1):
@@ -113,18 +105,16 @@ for valid_index in range(1):
             return fc1
 
 
-    VGGSPP = UPPS_NET(1, ndf=ndf).cuda()
-    # VGGSPP = nn.DataParallel(VGGSPP)
-    # VGGSPP = VGGSPP.cuda()
+    UPPS_NET = UPPS_NET(1, ndf=ndf).cuda()
 
-    print(VGGSPP)
+    print(UPPS_NET)
 
-    summary(VGGSPP, (1, XTrain.shape[2], XTrain.shape[3])) #65 33
+    summary(UPPS_NET, (1, XTrain.shape[2], XTrain.shape[3])) #65 33
     input_t = torch.randn(1, 1, XTrain.shape[2], XTrain.shape[3]).cuda()
-    flops, params = profile(VGGSPP, inputs=(input_t, ))
+    flops, params = profile(UPPS_NET, inputs=(input_t, ))
     print(flops, params)
 
-    optimizer = torch.optim.AdamW(VGGSPP.parameters())
+    optimizer = torch.optim.AdamW(UPPS_NET.parameters())
     loss_func = nn.BCEWithLogitsLoss()
 
     accuracy = [0]
@@ -133,10 +123,7 @@ for valid_index in range(1):
     max_accuracy = 0
     loss_all = [0]
     dt = datetime.datetime.now()
-    # kernel_size = 3
-    # stride = 2
-    # padding = 1
-    # ndf = 16
+
     model_dir = 'train_parallel_{:0>2d}_{:0>4f}_{:0>2d}'.format(ndf, alpha, valid_index)
     if not os.path.exists(model_dir):
         os.mkdir(model_dir)
@@ -147,7 +134,7 @@ for valid_index in range(1):
             x = batch_x.cuda()
             y = batch_y.cuda().squeeze()
             print('step:%d' % step)
-            out = VGGSPP(x)
+            out = UPPS_NET(x)
             # loss = loss_func(out, y)
             loss = FocalLoss(gamma=2, alpha=[alpha, 1])(out, y)
             loss_all.append(loss.cpu().item())
@@ -160,10 +147,10 @@ for valid_index in range(1):
             print('valid:step %d' % step2)
             x2 = batch_x2.cuda()
             if step2 == 0:
-                pred_test = torch.max(VGGSPP(x2), 1)
+                pred_test = torch.max(UPPS_NET(x2), 1)
                 pred_test = pred_test[1]
             else:
-                pred_test = torch.cat((pred_test, torch.max(VGGSPP(x2), 1)[1]), dim=0)
+                pred_test = torch.cat((pred_test, torch.max(UPPS_NET(x2), 1)[1]), dim=0)
 
         pred_test = pred_test.cpu().numpy()
         temp = np.expand_dims(pred_test, 1) == YValid.numpy()
@@ -202,8 +189,4 @@ for valid_index in range(1):
     np.save('./'+model_dir+'/accuracy_normal', accuracy_normal)
     np.save('./'+model_dir+'/accuracy_abnormal', accuracy_abnormal)
 
-# send email to me
-import send_email
-send_m = send_email.Sdem()
-send_email.Sdem.pro_over_send(send_m)
 
