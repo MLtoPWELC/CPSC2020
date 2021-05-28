@@ -54,7 +54,7 @@ YTrain_abnormal = torch.from_numpy(np.array(YTrain_abnormal)).long()
 
 valid_num = len(XTrain_abnormal)//10
 
-for valid_index in range(10):
+for valid_index in range(1):
     XValid = XTrain_abnormal[valid_num * valid_index:valid_num * (valid_index + 1)]
     YValid = YTrain_abnormal[valid_num * valid_index:valid_num * (valid_index + 1)]
     temp = list(range(len(XTrain_abnormal)))
@@ -100,10 +100,7 @@ for valid_index in range(10):
     # rnn = nn.DataParallel(rnn)
     # rnn = rnn.cuda()
     print(rnn)
-    # summary(VGGSPP, (1, XTrain.shape[2], XTrain.shape[3])) #65 33
-    # input_t = torch.randn(1, 1, XTrain.shape[2], XTrain.shape[3]).cuda()
-    # flops, params = profile(rnn, inputs=(input_t, ))
-    # print(flops, params)
+
 
     optimizer = torch.optim.Adam(rnn.parameters())
     loss_func = nn.NLLLoss()
