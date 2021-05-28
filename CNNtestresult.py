@@ -87,6 +87,7 @@ class UPPS_NET(nn.Module):
 UPPS_NET = torch.load('/home/yinyibo/PycharmProjects/pytorch/ECG/' +
                     'code/11.0/ICCSN/paper/CNN_validation_best/9_epoch120_0.94708_0.9480_0.9416.pth')
 
+UPPS_NET.eval()
 print(UPPS_NET)
 
 summary(UPPS_NET, (1, XTrain.shape[2], XTrain.shape[3]))  # 65 33
