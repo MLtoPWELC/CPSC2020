@@ -84,14 +84,14 @@ class UPPS_NET(nn.Module):
         return fc1
 
     
-VGGSPP = torch.load('/home/yinyibo/PycharmProjects/pytorch/ECG/' +
+UPPS_NET = torch.load('/home/yinyibo/PycharmProjects/pytorch/ECG/' +
                     'code/11.0/ICCSN/paper/CNN_validation_best/9_epoch120_0.94708_0.9480_0.9416.pth')
 
-print(VGGSPP)
+print(UPPS_NET)
 
-summary(VGGSPP, (1, XTrain.shape[2], XTrain.shape[3]))  # 65 33
+summary(UPPS_NET, (1, XTrain.shape[2], XTrain.shape[3]))  # 65 33
 input_t = torch.randn(1, 1, XTrain.shape[2], XTrain.shape[3]).cuda()
-flops, params = profile(VGGSPP, inputs=(input_t,))
+flops, params = profile(UPPS_NET, inputs=(input_t,))
 print(flops, params)
 
 
@@ -99,13 +99,12 @@ for step2, (batch_x2, batch_y2) in enumerate(loader2):
     print('valid:step %d' % step2)
     x2 = batch_x2.cuda()
     if step2 == 0:
-        pred_test = torch.max(VGGSPP(x2), 1)
+        pred_test = torch.max(UPPS_NET(x2), 1)
         pred_test = pred_test[1]
     else:
-        pred_test = torch.cat((pred_test, torch.max(VGGSPP(x2), 1)[1]), dim=0)
+        pred_test = torch.cat((pred_test, torch.max(UPPS_NET(x2), 1)[1]), dim=0)
 
 pred_test = pred_test.cpu().numpy()
-np.save('YT2_1.npy', pred_test)
 temp = np.expand_dims(pred_test, 1) == YTest.numpy()
 accuracy = np.sum(temp) / np.size(temp)
 
