@@ -104,7 +104,8 @@ rnn = torch.load('/home/yinyibo/PycharmProjects/pytorch/ECG/code/'+
 CNN_abnormal_num = 0
 
 result_CNN = []
-UPPS_NET.eval()
+UPPS_NET.eval()#This is very important. The function of this sentence is to let the BN layer no longer update the parameters during the later model operation.
+#Since the batch size of this test is 1 each time, the performance of the model will be much worse without this sentence.
 
 for i in range(len(XTest_CNN)):
     # print('index %d' % i)
