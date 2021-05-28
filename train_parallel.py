@@ -1,6 +1,6 @@
 import os
 # os.environ['CUDA_VISIBLE_DEVICES'] = '0,1,2,3'
-os.environ['CUDA_VISIBLE_DEVICES'] = '3'
+os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 import torch
 import torch.nn as nn
 import numpy as np
@@ -18,9 +18,6 @@ from matplotlib import pyplot as plt
 start = time.time()
 np.random.seed(1337)
 
-kernel_size = 4
-stride = 2
-padding = 2
 ndf = 18
 alpha = 0.01
 XTrain = np.load('XTrain.npy', allow_pickle=True)
@@ -28,7 +25,6 @@ YTrain = np.load('YTrain.npy', allow_pickle=True)
 elapsed = time.time() - start
 print("data load time used:", elapsed)
 
-np.random.seed(1337)
 XTrain = torch.from_numpy(np.expand_dims(XTrain, 1)).float()
 YTrain = torch.from_numpy(np.expand_dims(YTrain, 1)).long()
 
@@ -42,9 +38,17 @@ YTrain_all = YTrain[row_rand[0:validation_size]]
 XTest = XTrain[row_rand[validation_size:]]
 YTest = YTrain[row_rand[validation_size:]]
 
+# for i in range(len(YTest)):
+#     if YTest[i] == 1:
+#         print(i)
+#         np.save('XTest_1.npy', XTest[i])
+#         break
+#
+# np.save('XTest_0.npy', XTest[0])
+
 valid_num = len(XTrain_all)//10
 
-for valid_index in range(10):
+for valid_index in range(1):
     XValid = XTrain_all[valid_num * valid_index:valid_num * (valid_index + 1)]
     YValid = YTrain_all[valid_num * valid_index:valid_num * (valid_index + 1)]
     temp = list(range(len(XTrain_all)))
@@ -65,8 +69,8 @@ for valid_index in range(10):
         shuffle=True,
         num_workers=2
     )
-    YValid = YTest
-    torch_testset = Data.TensorDataset(XTest, XTest)
+
+    torch_testset = Data.TensorDataset(XValid, YValid)
     loader2 = Data.DataLoader(
         dataset=torch_testset,
         batch_size=batch_size,
@@ -77,87 +81,39 @@ for valid_index in range(10):
     elapsed = time.time() - start
     print("data to dataloader time used:", elapsed)
 
-    class SPP_NET(nn.Module):
-        '''
-        A CNN model which adds spp layer so that we can input multi-size tensor
-        '''
+    class UPPS_NET(nn.Module):
+        def __init__(self, input_nc, ndf):
+            super(UPPS_NET, self).__init__()
 
-        def __init__(self, opt, input_nc, ndf, gpu_ids=[]):
-            super(SPP_NET, self).__init__()
-            self.gpu_ids = gpu_ids
-            self.output_num = [1]
+            self.conv1 = nn.Conv2d(input_nc, ndf, 4, 2, 2, bias=False)
+            self.BN1 = nn.BatchNorm2d(ndf)
 
-            self.conv1 = nn.Conv2d(input_nc, ndf, kernel_size=kernel_size, stride=stride,
-                                   padding=padding, bias=False)
-            self.BN0 = nn.BatchNorm2d(ndf)
+            self.conv2 = nn.Conv2d(ndf, ndf * 2, 4, 2, 2, groups=1, bias=False)
+            self.BN2 = nn.BatchNorm2d(ndf * 2)
 
-            self.conv2 = nn.Conv2d(ndf, ndf*2, kernel_size=kernel_size, stride=stride,
-                                   padding=padding, bias=False)
-            self.BN1 = nn.BatchNorm2d(ndf*2)
-
-            # self.conv3 = nn.Conv2d(ndf * 2, ndf * 4, kernel_size=kernel_size, stride=stride,
-            #                        padding=padding,  bias=False)
-            # self.BN2 = nn.BatchNorm2d(ndf * 4)
-            #
-            # self.conv4 = nn.Conv2d(ndf * 4, ndf * 8, kernel_size=kernel_size, stride=stride,
-            #                        padding=padding,  bias=False)
-            # self.BN3 = nn.BatchNorm2d(ndf * 8)
-
-            self.conv5 = nn.Conv2d(ndf*2, ndf, kernel_size=kernel_size, stride=stride,
-                                   padding=padding, bias=False)
-
-            self.fc1 = nn.Linear(ndf, ndf//2)
-            self.fc2 = nn.Linear(ndf//2, 2)
+            self.conv3 = nn.Conv2d(ndf * 2, ndf, 4, 2, 2, groups=1, bias=False)
+            self.fc1 = nn.Linear(ndf, 2)
 
         def forward(self, x):
             x = self.conv1(x)
-            x = F.relu(self.BN0(x))
+            x = F.leaky_relu(self.BN1(x))
 
             x = self.conv2(x)
-            x = F.relu(self.BN1(x))
+            x = F.leaky_relu(self.BN2(x))
 
-            # x = self.conv3(x)
-            # x = F.leaky_relu(self.BN2(x))
-            #
-            # x = self.conv4(x)
-            # x = F.leaky_relu(self.BN3(x))
-            x = self.conv5(x)
-            spp = self.spatial_pyramid_pool(x, x.size()[0], [int(x.size(2)), int(x.size(3))], self.output_num)
-            # print(spp.size())
-            fc1 = self.fc1(spp)
-            fc2 = self.fc2(fc1)
-            # s = nn.Softmax()
-            # output = s(fc2)
-            output = fc2
-            return output
+            x = self.conv3(x)
+            num_sample = x.size()[0]
+            h_wid = int(math.ceil(int(x.size(2))))
+            w_wid = int(math.ceil(int(x.size(3))))
+            maxpool = nn.MaxPool2d((h_wid, w_wid), stride=(h_wid, w_wid), padding=(0, 0))
+            x = maxpool(x)
+            x = x.view(num_sample, -1)
+            fc1 = self.fc1(x)
 
-        def spatial_pyramid_pool(self, previous_conv, num_sample, previous_conv_size, out_pool_size):
-            '''
-            previous_conv: a tensor vector of previous convolution layer
-            num_sample: an int number of image in the batch
-            previous_conv_size: an int vector [height, width] of the matrix features size of previous convolution layer
-            out_pool_size: a int vector of expected output size of max pooling layer
+            return fc1
 
-            returns: a tensor vector with shape [1 x n] is the concentration of multi-level pooling
-            '''
-            # print(previous_conv.size())
-            for i in range(len(out_pool_size)):
-                # print(previous_conv_size)
-                h_wid = int(math.ceil(previous_conv_size[0] / out_pool_size[i]))
-                w_wid = int(math.ceil(previous_conv_size[1] / out_pool_size[i]))
-                h_pad = (h_wid * out_pool_size[i] - previous_conv_size[0] + 1) // 2
-                w_pad = (w_wid * out_pool_size[i] - previous_conv_size[1] + 1) // 2
-                maxpool = nn.MaxPool2d((h_wid, w_wid), stride=(h_wid, w_wid), padding=(h_pad, w_pad))
-                x = maxpool(previous_conv)
-                if (i == 0):
-                    spp = x.view(num_sample, -1)
-                    # print("spp size:",spp.size())
-                else:
-                    # print("size:",spp.size())
-                    spp = torch.cat((spp, x.view(num_sample, -1)), 1)
-            return spp
 
-    VGGSPP = SPP_NET(1, 1, ndf=ndf, gpu_ids=[0, 1, 2, 3]).cuda()
+    VGGSPP = UPPS_NET(1, ndf=ndf).cuda()
     # VGGSPP = nn.DataParallel(VGGSPP)
     # VGGSPP = VGGSPP.cuda()
 
@@ -168,7 +124,7 @@ for valid_index in range(10):
     flops, params = profile(VGGSPP, inputs=(input_t, ))
     print(flops, params)
 
-    optimizer = torch.optim.Adam(VGGSPP.parameters())
+    optimizer = torch.optim.AdamW(VGGSPP.parameters())
     loss_func = nn.BCEWithLogitsLoss()
 
     accuracy = [0]
@@ -181,7 +137,7 @@ for valid_index in range(10):
     # stride = 2
     # padding = 1
     # ndf = 16
-    model_dir = 'train_parallel_{:0>2d}_{:0>2d}_{:0>2d}_{:0>2d}_{:0>4f}_{:0>2d}'.format(kernel_size, stride, padding, ndf, alpha, valid_index)
+    model_dir = 'train_parallel_{:0>2d}_{:0>4f}_{:0>2d}'.format(ndf, alpha, valid_index)
     if not os.path.exists(model_dir):
         os.mkdir(model_dir)
     for epoch in range(201):
@@ -247,7 +203,7 @@ for valid_index in range(10):
     np.save('./'+model_dir+'/accuracy_abnormal', accuracy_abnormal)
 
 # send email to me
-# import send_email
-# send_m = send_email.Sdem()
-# send_email.Sdem.pro_over_send(send_m)
+import send_email
+send_m = send_email.Sdem()
+send_email.Sdem.pro_over_send(send_m)
 
