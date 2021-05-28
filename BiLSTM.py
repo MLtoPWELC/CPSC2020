@@ -180,7 +180,4 @@ for valid_index in range(10):
     np.save('./' + model_dir + '/accuracy', accuracy)
     np.save('./' + model_dir + '/accuracy_S', accuracy_S)
     np.save('./' + model_dir + '/accuracy_V', accuracy_V)
-# send email to me
-# import send_email
-# send_m = send_email.Sdem()
-# send_email.Sdem.pro_over_send(send_m)
+
