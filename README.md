@@ -8,4 +8,4 @@ code website:https://github.com/nervemonkey/CPSC2020
 
 data website:http://2020.icbeb.org/CSPC2020
 
-remarks：The data address and model address in the codes need to be modified
+remarks：The file paths of data and model in the codes need to be modified
